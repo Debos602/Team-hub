@@ -89,7 +89,7 @@ const getGoalById = async (goalId: string) => {
 };
 
 const getGoalsByWorkspace = async (workspaceId: string, priority?: string) => {
-  const where: Prisma.GoalWhereInput = { workspaceId };
+  const where: any = { workspaceId };
 
   if (priority) {
     where.priority = priority as any;

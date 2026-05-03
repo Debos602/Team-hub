@@ -1,7 +1,9 @@
-import prisma from '../../../shared/prisma';
+
 import { Prisma } from '@prisma/client';
+import prisma from '../../../shared/prisma';
 import { emitToWorkspace } from '../../../socket';
 import { ACTION_ITEM_STATUS_CHANGED } from '../../../socket/events';
+
 
 type ActionItemStatus = 'TODO' | 'IN_PROGRESS' | 'IN_REVIEW' | 'DONE';
 type Priority = 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT';
@@ -79,7 +81,7 @@ const getActionItemsByWorkspace = async (
     priority?: Priority;
   }
 ) => {
-  const where: Prisma.ActionItemWhereInput = { workspaceId };
+  const where: any = { workspaceId };
 
   if (filters?.status) where.status = filters.status as any;
   if (filters?.assigneeId) where.assigneeId = filters.assigneeId;
@@ -107,7 +109,7 @@ const getActionItemsListView = async (
     priority?: Priority;
   }
 ) => {
-  const where: Prisma.ActionItemWhereInput = { workspaceId };
+  const where: any = { workspaceId };
 
   if (filters?.status) where.status = filters.status as any;
   if (filters?.assigneeId) where.assigneeId = filters.assigneeId;

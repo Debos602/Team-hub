@@ -241,7 +241,7 @@ const getReactionsForAnnouncement = async (announcementId: string) => {
 
   return Object.entries(grouped).map(([emoji, users]) => ({
     emoji,
-    count: users.length,
+    count: (users as any[]).length,
     users,
   }));
 };

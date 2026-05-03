@@ -35,11 +35,11 @@ const register = async (payload: { email: string; password: string; name?: strin
 
     const hashed = await bcrypt.hash(payload.password, Number(config.salt_round) || 10);
 
-    const createData: Prisma.UserCreateInput = {
+    const createData: any = {
         email: payload.email,
         password: hashed,
         ...(payload.name ? { name: payload.name } : {}),
-    } as Prisma.UserCreateInput;
+    } as any;
 
     const user = await prisma.user.create({
         data: createData,
@@ -212,7 +212,7 @@ const updateProfile = async (
 
     const updated = await prisma.user.update({
         where: { id: userId },
-        data: data as Prisma.UserUpdateInput,
+        data: data as any,
         select: { id: true, email: true, name: true, avatar: true },
     });
     return updated;
