@@ -194,7 +194,6 @@ SMTP_USER="your@email.com"
 SMTP_PASS="your-app-password"
 ```
 
-> ⚠️ Never commit your `.env` file. It is listed in `.gitignore`.
 
 ---
 
@@ -226,6 +225,6 @@ All endpoints are grouped by module: `auth`, `workspace`, `member`, `channel`, `
 
 ---
 
-## 📄 License
+
 
 MIT © [Debos602](https://github.com/Debos602)
