@@ -1,0 +1,393 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─────────────────────────────────────────
+// AUTH & USERS
+// ─────────────────────────────────────────
+
+model User {
+  id              String   @id @default(uuid())
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  email           String   @unique
+  name            String
+  password        String
+  avatar          String?  // Cloudinary URL
+  emailVerified   Boolean  @default(false)
+
+  // Relations
+  ownedWorkspaces    Workspace[]         @relation("WorkspaceOwner")
+  memberships        WorkspaceMember[]
+  assignedGoals      Goal[]              @relation("GoalOwner")
+  assignedItems      ActionItem[]        @relation("ActionItemAssignee")
+  activityFeed       GoalActivity[]
+  announcements      Announcement[]
+  reactions          Reaction[]
+  comments           Comment[]
+  notifications      Notification[]
+  mentionedIn        Mention[]
+  auditLogs          AuditLog[]
+  refreshTokens      RefreshToken[]
+  sentInvites        WorkspaceInvite[]   @relation("InviteSender")
+  activeWorkspaceId  String?
+  activeWorkspace    Workspace?          @relation("ActiveWorkspace", fields: [activeWorkspaceId], references: [id])
+
+  @@index([email])
+}
+
+// Refresh Token for JWT
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────
+// WORKSPACES
+// ─────────────────────────────────────────
+
+model Workspace {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  name        String
+  description String?
+  accentColor String   @default("#6366f1")
+
+  ownerId     String
+  owner       User     @relation("WorkspaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+
+  // Relations
+  members       WorkspaceMember[]
+  goals         Goal[]
+  announcements Announcement[]
+  actionItems   ActionItem[]
+  invites       WorkspaceInvite[]
+  auditLogs     AuditLog[]
+  activeUsers   User[]            @relation("ActiveWorkspace")
+
+  @@index([ownerId])
+}
+
+// Workspace Member
+model WorkspaceMember {
+  id          String        @id @default(uuid())
+  createdAt   DateTime      @default(now())
+
+  workspaceId String
+  userId      String
+  role        WorkspaceRole @default(MEMBER)  // 👈 শুধু এই role দিয়েই সব permission handle হবে
+  isOnline    Boolean       @default(false)
+  lastSeen    DateTime?
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+}
+
+// Workspace Invite
+model WorkspaceInvite {
+  id          String        @id @default(uuid())
+  createdAt   DateTime      @default(now())
+  expiresAt   DateTime
+
+  email       String
+  workspaceId String
+  senderId    String
+  role        WorkspaceRole @default(MEMBER)
+  status      InviteStatus  @default(PENDING)
+  token       String        @unique
+
+  workspace   Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  sender      User          @relation("InviteSender", fields: [senderId], references: [id])
+
+  @@index([workspaceId])
+  @@index([email])
+}
+
+// ─────────────────────────────────────────
+// GOALS & MILESTONES
+// ─────────────────────────────────────────
+
+model Goal {
+  id          String     @id @default(uuid())
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+
+  title       String
+  description String?
+  dueDate     DateTime?
+  status      GoalStatus @default(NOT_STARTED)
+  progress    Int        @default(0)   // 0-100
+  priority    Priority   @default(MEDIUM)
+
+  workspaceId String
+  ownerId     String
+
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner       User           @relation("GoalOwner", fields: [ownerId], references: [id])
+
+  milestones  Milestone[]
+  actionItems ActionItem[]
+  activities  GoalActivity[]
+
+  @@index([workspaceId])
+  @@index([ownerId])
+  @@index([dueDate])
+  @@index([status])
+  @@index([workspaceId, status])
+}
+
+// Milestone
+model Milestone {
+  id          String          @id @default(uuid())
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  title       String
+  description String?
+  dueDate     DateTime?
+  progress    Int             @default(0)
+  status      MilestoneStatus @default(PENDING)
+
+  goalId      String
+  goal        Goal            @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  @@index([goalId])
+}
+
+// Goal Activity Feed
+model GoalActivity {
+  id        String   @id @default(uuid())
+  createdAt DateTime @default(now())
+
+  content   String
+  goalId    String
+  userId    String
+
+  goal      Goal     @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([goalId])
+  @@index([userId])
+}
+
+// ─────────────────────────────────────────
+// ANNOUNCEMENTS
+// ─────────────────────────────────────────
+
+model Announcement {
+  id          String    @id @default(uuid())
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  title       String
+  content     String    // rich text (HTML/JSON)
+  isPinned    Boolean   @default(false)
+
+  workspaceId String
+  authorId    String
+
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  author      User       @relation(fields: [authorId], references: [id])
+
+  reactions   Reaction[]
+  comments    Comment[]
+
+  @@index([workspaceId])
+  @@index([isPinned])
+}
+
+// ─────────────────────────────────────────
+// ACTION ITEMS
+// ─────────────────────────────────────────
+
+model ActionItem {
+  id          String           @id @default(uuid())
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  title       String
+  description String?
+  priority    Priority         @default(MEDIUM)
+  status      ActionItemStatus @default(TODO)
+  dueDate     DateTime?
+  order       Int?             @default(0)
+
+  workspaceId String
+  assigneeId  String?
+  goalId      String?
+
+  workspace   Workspace  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  assignee    User?      @relation("ActionItemAssignee", fields: [assigneeId], references: [id])
+  goal        Goal?      @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([assigneeId])
+  @@index([goalId])
+  @@index([status])
+  @@index([dueDate])
+}
+
+// ─────────────────────────────────────────
+// REACTIONS & COMMENTS
+// ─────────────────────────────────────────
+
+model Reaction {
+  id             String  @id @default(uuid())
+  emoji          String
+  userId         String
+  announcementId String
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, announcementId, emoji])
+}
+
+model Comment {
+  id             String   @id @default(uuid())
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  content        String
+  userId         String
+  announcementId String
+  parentId       String?
+
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  announcement   Announcement @relation(fields: [announcementId], references: [id], onDelete: Cascade)
+  parent         Comment?     @relation("CommentReplies", fields: [parentId], references: [id], onDelete: SetNull)
+  replies        Comment[]    @relation("CommentReplies")
+
+  mentions       Mention[]
+
+  @@index([announcementId])
+  @@index([userId])
+  @@index([parentId])
+}
+
+// ─────────────────────────────────────────
+// NOTIFICATIONS & MENTIONS
+// ─────────────────────────────────────────
+
+model Notification {
+  id        String           @id @default(uuid())
+  createdAt DateTime         @default(now())
+
+  type      NotificationType
+  message   String
+  isRead    Boolean          @default(false)
+  link      String?
+
+  userId    String
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([isRead])
+}
+
+model Mention {
+  id        String  @id @default(uuid())
+  userId    String
+  commentId String
+
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  comment   Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, commentId])
+}
+
+// ─────────────────────────────────────────
+// AUDIT LOG
+// ─────────────────────────────────────────
+
+model AuditLog {
+  id          String   @id @default(uuid())
+  createdAt   DateTime @default(now())
+
+  action      String   // "GOAL_CREATED", "STATUS_CHANGED" etc.
+  entity      String   // "Goal", "ActionItem", "Announcement"
+  entityId    String
+  oldValue    Json?
+  newValue    Json?
+  metadata    Json?
+
+  workspaceId String
+  userId      String
+
+  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User      @relation(fields: [userId], references: [id])
+
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([createdAt])
+  @@index([entity, entityId])
+}
+
+// ─────────────────────────────────────────
+// ENUMS
+// ─────────────────────────────────────────
+
+enum WorkspaceRole {
+  ADMIN
+  MEMBER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
+enum GoalStatus {
+  NOT_STARTED
+  IN_PROGRESS
+  COMPLETED
+  OVERDUE
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+}
+
+enum ActionItemStatus {
+  TODO
+  IN_PROGRESS
+  IN_REVIEW
+  DONE
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+  URGENT
+}
+
+enum NotificationType {
+  MENTION
+  INVITE
+  GOAL_UPDATE
+  COMMENT
+  REACTION
+  STATUS_CHANGE
+}

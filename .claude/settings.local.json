@@ -1,0 +1,13 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(cat .env)",
+      "Bash(cat .env.local)",
+      "Bash(npm run *)",
+      "Bash(curl -s http://localhost:5000/)",
+      "Bash(node -e ' *)",
+      "Bash(git checkout *)",
+      "Bash(git show *)"
+    ]
+  }
+}
