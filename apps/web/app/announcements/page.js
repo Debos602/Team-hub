@@ -66,8 +66,8 @@ export default function AnnouncementsPage() {
     return () => { mounted = false; };
   }, [currentWorkspaceId, fetchAnnouncements]);
 
-  const handleCreate = async ({ title, content }) => {
-    const payload = { title, content, workspaceId: currentWorkspaceId, authorId: user?.id };
+  const handleCreate = async ({ title, content, mentionedUserIds = [] }) => {
+    const payload = { title, content, workspaceId: currentWorkspaceId, authorId: user?.id, mentionedUserIds };
     try {
       const res = await useAuthStore.getState().api.post(`/announcements`, payload);
       let data = null;

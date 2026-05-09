@@ -6,6 +6,7 @@ import { GoalRoutes } from '../modules/goals/goal.routes';
 import { AnnouncementRoutes } from '../modules/announcements/announcement.routes';
 import { ActionItemRoutes } from '../modules/action-items/action-item.routes';
 import { DashboardRoutes } from '../modules/dashboard/dashboard.routes';
+import { NotificationRoutes } from '../modules/notifications/notification.routes';
 
 
 
@@ -22,6 +23,7 @@ const moduleRoutes = [
 	{ path: '/announcements', route: AnnouncementRoutes },
 	{ path: '/action-items', route: ActionItemRoutes },
 	{ path: '/dashboard', route: DashboardRoutes },
+	{ path: '/notifications', route: NotificationRoutes },
 ];
 
 moduleRoutes.forEach(route => router.use(route.path, route.route));

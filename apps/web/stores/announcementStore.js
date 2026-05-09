@@ -158,7 +158,7 @@ export const useAnnouncementStore = create((set, get) => ({
       }),
     }));
   },
-  addComment: async (annId, content) => {
+  addComment: async (annId, content, mentionedUserIds = []) => {
     if (!annId) {
       console.warn("addComment called with empty annId — performing local fallback");
       const comment = {
@@ -180,8 +180,8 @@ export const useAnnouncementStore = create((set, get) => ({
       const res = await useAuthStore.getState().api.post(`/announcements/${annId}/comments`, {
         content,
         authorId: userId,
-        announcementId: annId,        
-        mentionedUserIds: [],         
+        announcementId: annId,
+        mentionedUserIds: mentionedUserIds || [],
       });
       const data = await res.json().catch(() => null);
       if (res.ok && (data?.success || data?.data)) {

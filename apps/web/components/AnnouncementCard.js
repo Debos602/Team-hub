@@ -57,12 +57,36 @@ function ReactionPopup({ onSelect }) {
 function CommentInput({ onSubmit }) {
   const [text, setText] = useState("");
   const [focused, setFocused] = useState(false);
+  const [showPicker, setShowPicker] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [mentioned, setMentioned] = useState([]);
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_API}/auth/users`, { credentials: 'include' });
+      if (!res.ok) return;
+      const payload = await res.json().catch(() => null);
+      const list = payload?.data || payload || [];
+      setUsers(list);
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  const handleSelectUser = (u) => {
+    // append token format @[Name](id)
+    const token = `@[${u.name}](${u.id}) `;
+    setText((t) => (t ? t + ' ' + token : token));
+    setMentioned((prev) => Array.from(new Set([...prev, u.id])));
+    setShowPicker(false);
+  };
 
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!text.trim()) return;
-    onSubmit(text);
+    onSubmit(text, mentioned);
     setText("");
+    setMentioned([]);
   };
 
   return (
@@ -84,6 +108,33 @@ function CommentInput({ onSubmit }) {
           placeholder="Write a comment…"
           className="flex-1 bg-transparent px-3 py-2 text-sm text-[var(--foreground)] placeholder:text-[var(--muted-foreground)] focus:outline-none"
         />
+
+        <button
+          type="button"
+          onClick={async () => { setShowPicker((v) => !v); if (users.length === 0) await fetchUsers(); }}
+          className="absolute right-10 top-1/2 -translate-y-1/2 mr-2 text-sm text-[var(--muted-foreground)] hover:text-[var(--foreground)]"
+          title="Mention someone"
+        >
+          @
+        </button>
+
+        {showPicker && (
+          <div className="absolute right-0 top-full mt-2 z-50 w-56 rounded-md border bg-[var(--card)] shadow-lg">
+            <div className="max-h-56 overflow-auto">
+              {users.map((u) => (
+                <button key={u.id} onClick={() => handleSelectUser(u)} className="w-full text-left px-3 py-2 hover:bg-[var(--accent)]">
+                  <div className="flex items-center gap-2">
+                    <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`} alt={u.name} className="h-6 w-6 rounded-full" />
+                    <div>
+                      <div className="text-sm text-[var(--foreground)]">{u.name}</div>
+                      <div className="text-xs text-[var(--muted-foreground)]">{u.email}</div>
+                    </div>
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <button
         type="submit"
@@ -218,7 +269,7 @@ export default function AnnouncementCard({ announcement, onPin }) {
     }
   };
 
-  const addComment = async (content) => {
+  const addComment = async (content, mentionedUserIds = []) => {
     const targetId = announcement?.id || ann?.id;
     const fallback = {
       id:     Date.now().toString(),
@@ -232,7 +283,7 @@ export default function AnnouncementCard({ announcement, onPin }) {
       return;
     }
     try {
-      await addCommentToStore(targetId, content);
+      await addCommentToStore(targetId, content, mentionedUserIds);
       setShowComments(true);
     } catch (err) {
       console.error("Failed to add comment:", err);
@@ -474,7 +525,7 @@ export default function AnnouncementCard({ announcement, onPin }) {
                   ))}
                 </div>
               )}
-              <CommentInput onSubmit={addComment} />
+              <CommentInput onSubmit={(text, mentioned) => addComment(text, mentioned)} />
             </div>
           )}
 

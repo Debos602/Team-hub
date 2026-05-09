@@ -19,6 +19,7 @@ interface CreateAnnouncementPayload {
   title: string;
   content: string;
   workspaceId: string;
+  mentionedUserIds?: string[];
 }
 
 interface UpdateAnnouncementPayload {
@@ -73,6 +74,26 @@ const createAnnouncement = async (userId: string, payload: CreateAnnouncementPay
   });
 
   emitToWorkspace(payload.workspaceId, ANNOUNCEMENT_CREATED, announcement);
+
+  // If announcement mentions users, create notifications and emit mention events
+  if (payload.mentionedUserIds && payload.mentionedUserIds.length > 0) {
+    for (const mentionedUserId of payload.mentionedUserIds) {
+      await prisma.notification.create({
+        data: {
+          type: 'MENTION',
+          message: `${announcement.author.name} mentioned you in an announcement`,
+          link: `/workspace/${announcement.workspaceId}/announcements/${announcement.id}`,
+          userId: mentionedUserId,
+        },
+      });
+
+      emitToUser(mentionedUserId, MENTION_CREATED, {
+        announcement,
+        mentionedBy: announcement.author,
+      });
+    }
+  }
+
   return announcement;
 };
 

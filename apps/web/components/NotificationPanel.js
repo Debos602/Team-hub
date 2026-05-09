@@ -7,18 +7,42 @@ export default function NotificationPanel({ onClose }) {
   const [notifications, setNotifications] = useState([]);
 
   useEffect(() => {
+    // Attempt to fetch notifications from the API; fall back to empty list on error
+    const getNotifications = async () => {
+      try {
+        const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_API}/notifications`, { credentials: 'include' });
+        if (!res.ok) return [];
+        const data = await res.json();
+        return data?.data || data || [];
+      } catch (err) {
+        return [];
+      }
+    };
+
     getNotifications().then(setNotifications);
   }, []);
 
   const handleClick = async (id) => {
+    // Try to mark as read on the API, ignore errors
+    const markNotificationRead = async (nid) => {
+      try {
+        await fetch(`${process.env.NEXT_PUBLIC_BASE_API}/notifications/${nid}/read`, {
+          method: 'POST',
+          credentials: 'include',
+        });
+      } catch (err) {
+        // ignore
+      }
+    };
+
     await markNotificationRead(id);
     setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
   };
 
   return (
     <>
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="absolute right-4 top-14 z-50 w-80 rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
+      <div className="fixed inset-0 z-9999" onClick={onClose} />
+      <div className="fixed right-4 top-14 z-50 w-80 rounded-xl border border-[var(--border)] bg-[var(--card)] shadow-xl">
         <div className="border-b border-[var(--border)] px-4 py-3">
           <h3 className="font-semibold text-[var(--foreground)]">Notifications</h3>
         </div>

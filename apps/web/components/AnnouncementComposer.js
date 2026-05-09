@@ -5,6 +5,9 @@ import { useState, useRef } from "react";
 export default function AnnouncementComposer({ onSubmit, onClose }) {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
+  const [showPicker, setShowPicker] = useState(false);
+  const [users, setUsers] = useState([]);
+  const [mentionedUserIds, setMentionedUserIds] = useState([]);
   const editorRef = useRef(null);
 
   const execCmd = (command, value = null) => {
@@ -15,7 +18,23 @@ export default function AnnouncementComposer({ onSubmit, onClose }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     if (!content.trim()) return;
-    onSubmit({ title, content: content || "<p></p>" });
+    onSubmit({ title, content: content || "<p></p>", mentionedUserIds });
+  };
+
+  const fetchUsers = async () => {
+    try {
+      const res = await fetch(`${process.env.NEXT_PUBLIC_BASE_API}/auth/users`, { credentials: 'include' });
+      if (!res.ok) return;
+      const payload = await res.json().catch(() => null);
+      const list = payload?.data || payload || [];
+      setUsers(list);
+    } catch (err) {
+      // ignore
+    }
+  };
+
+  const toggleMention = (id) => {
+    setMentionedUserIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
   };
 
   return (
@@ -56,7 +75,73 @@ export default function AnnouncementComposer({ onSubmit, onClose }) {
                 {btn.label}
               </button>
             ))}
+            <button
+              type="button"
+              onClick={async (e) => { e.preventDefault(); setShowPicker((v) => !v); if (users.length === 0) await fetchUsers(); }}
+              className="rounded px-2.5 py-1 text-sm hover:bg-[var(--accent)]"
+              title="Mention people"
+            >
+              @
+            </button>
+            {showPicker && (
+              <div className="absolute mt-2 z-50 w-64 rounded-md border bg-[var(--card)] shadow-lg">
+                <div className="p-2 max-h-48 overflow-auto">
+                  {users.map((u) => (
+                    <label key={u.id} className="flex items-center gap-2 px-2 py-1 hover:bg-[var(--accent)]">
+                      <input type="checkbox" checked={mentionedUserIds.includes(u.id)} onChange={() => toggleMention(u.id)} />
+                      <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`} alt={u.name} className="h-6 w-6 rounded-full" />
+                      <div className="text-sm">
+                        <div className="text-[var(--foreground)]">{u.name}</div>
+                        <div className="text-xs text-[var(--muted-foreground)]">{u.email}</div>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
+
+          {mentionedUserIds.length > 0 && (
+            <div className="flex flex-wrap gap-2">
+              {mentionedUserIds.map((id) => {
+                const u = users.find((x) => x.id === id);
+                return (
+                  <div key={id} className="rounded-full px-3 py-1 text-sm" style={{ background: "var(--muted)" }}>
+                    {u?.name || id}
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Mention picker */}
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={async () => { setShowPicker((v) => !v); if (!showPicker && users.length === 0) await fetchUsers(); }}
+              className="rounded px-2 py-1 text-sm hover:bg-[var(--accent)]"
+            >
+              @ Mention
+            </button>
+            {mentionedUserIds.length > 0 && (
+              <div className="text-sm text-[var(--muted-foreground)]">Mentioning: {users.filter(u => mentionedUserIds.includes(u.id)).map(u => u.name).join(', ')}</div>
+            )}
+          </div>
+
+          {showPicker && (
+            <div className="rounded border border-[var(--border)] bg-[var(--card)] p-2 max-h-40 overflow-auto">
+              {users.map((u) => (
+                <label key={u.id} className="flex items-center gap-2 px-2 py-1">
+                  <input type="checkbox" checked={mentionedUserIds.includes(u.id)} onChange={() => toggleMention(u.id)} />
+                  <img src={u.avatar || `https://ui-avatars.com/api/?name=${encodeURIComponent(u.name)}`} alt={u.name} className="h-6 w-6 rounded-full" />
+                  <div className="text-sm">
+                    <div className="text-[var(--foreground)]">{u.name}</div>
+                    <div className="text-xs text-[var(--muted-foreground)]">{u.email}</div>
+                  </div>
+                </label>
+              ))}
+            </div>
+          )}
 
           {/* Editor */}
           <div
